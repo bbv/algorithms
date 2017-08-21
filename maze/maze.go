@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -20,6 +21,8 @@ type Point struct {
 
 var nextMoves [][]int = [][]int{[]int{-1, 0}, []int{0, 1}, []int{1, 0}, []int{0, -1}}
 
+var NoMovesError = errors.New("No more possible moves")
+
 func (p Point) Equals(p2 Point) bool {
 	if p.X == p2.X && p.Y == p2.Y {
 		return true
@@ -28,24 +31,32 @@ func (p Point) Equals(p2 Point) bool {
 }
 
 func (m *Maze) Traverse(start Point, finish Point, path []Point) ([]Point, error) {
+	npath := make([]Point, len(path))
+	copy(npath, path)
+	npath = append(npath, start)
+	m.Print(npath)
+
 	if start.Equals(finish) {
-		return path, nil
+		return npath, nil
 	}
 	next, err := m.findNextMoves(start, path)
 	if err != nil {
 		return nil, err
 	}
 	log.Println(next)
-	npath := make([]Point, len(path))
-	copy(npath, path)
+	if len(next) == 0 {
+		return npath, NoMovesError
+	}
+
 	for _, n := range next {
+		log.Println(n)
 		p, err := m.Traverse(n, finish, npath)
 		if err == nil {
 			return p, nil
 		}
 	}
 
-	return path, nil
+	return npath, NoMovesError
 }
 
 func (m *Maze) findNextMoves(start Point, path []Point) ([]Point, error) {
@@ -61,7 +72,7 @@ func (m *Maze) findNextMoves(start Point, path []Point) ([]Point, error) {
 }
 
 func (m *Maze) isPointValid(p Point) bool {
-	return p.X >= 0 && p.Y >= 0 && p.X < m.Width && p.Y < m.Height
+	return p.X >= 0 && p.Y >= 0 && p.X < m.Height && p.Y < m.Width && m.Map[p.X][p.Y] == 0
 }
 
 func notVisited(p Point, path []Point) bool {
@@ -98,7 +109,20 @@ func readMazeFromFile(fname string) (Maze, error) {
 	if len(mrow) > 0 {
 		mmap = append(mmap, mrow)
 	}
-	return Maze{Map: mmap, Width: len(mmap), Height: len(mmap[0])}, nil
+	return Maze{Map: mmap, Width: len(mmap[0]), Height: len(mmap)}, nil
+}
+
+func (m *Maze) Print(path []Point) {
+	for i, row := range m.Map {
+		for j, val := range row {
+			if notVisited(Point{X: i, Y: j}, path) {
+				fmt.Printf("%d", val)
+			} else {
+				fmt.Printf("X")
+			}
+		}
+		fmt.Println()
+	}
 }
 
 func main() {
@@ -111,7 +135,7 @@ func main() {
 		log.Println(err)
 	}
 	log.Println(maze)
-	path, err := maze.Traverse(Point{0, 0}, Point{19, 9}, []Point{})
+	path, err := maze.Traverse(Point{9, 19}, Point{0, 0}, []Point{})
 	if err != nil {
 		log.Println(err)
 	}
